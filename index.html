@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Лунный Свет — Аренда квартир</title>
+<meta name="theme-color" content="#080B22">
+
+<!-- Telegram WebApp Bridge: даёт доступ к window.Telegram.WebApp внутри Telegram -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Marck+Script&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg-deep:#05070f;
+    --bg-mid:#0c1130;
+    --ink:#eef1fb;
+    --ink-soft:rgba(238,241,251,.66);
+    --ink-faint:rgba(238,241,251,.4);
+    --gold-1:#f6e6b4;
+    --gold-2:#d9b46a;
+    --silver-1:#eef2fb;
+    --silver-2:#a9b7d8;
+    --card-bg:rgba(255,255,255,.055);
+    --card-bg-solid:#121734;
+    --card-border:rgba(255,255,255,.14);
+    --radius-lg:22px;
+    --radius-md:16px;
+    --font-display:'Marck Script', cursive;
+    --font-body:'Manrope', system-ui, sans-serif;
+    --accent-grad:linear-gradient(115deg, var(--gold-1) 0%, var(--silver-1) 35%, var(--gold-2) 65%, var(--gold-1) 100%);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0; min-height:100%;}
+  html{
+    background:
+      radial-gradient(ellipse 120% 40% at 50% 0%, #1c2660 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-mid) 45%, var(--bg-deep) 100%);
+  }
+  body{
+    color:var(--ink);
+    font-family:var(--font-body);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  /* ---------- Звёздное поле (фон) ---------- */
+  .stars{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      radial-gradient(1.6px 1.6px at 10% 15%, rgba(255,255,255,.9), transparent),
+      radial-gradient(1.2px 1.2px at 25% 45%, rgba(255,255,255,.7), transparent),
+      radial-gradient(1.8px 1.8px at 40% 8%, rgba(255,255,255,.8), transparent),
+      radial-gradient(1.2px 1.2px at 60% 30%, rgba(255,255,255,.6), transparent),
+      radial-gradient(1.6px 1.6px at 75% 60%, rgba(255,255,255,.85), transparent),
+      radial-gradient(1.3px 1.3px at 85% 20%, rgba(255,255,255,.65), transparent),
+      radial-gradient(1.6px 1.6px at 92% 75%, rgba(255,255,255,.8), transparent),
+      radial-gradient(1.2px 1.2px at 15% 80%, rgba(255,255,255,.6), transparent),
+      radial-gradient(1.4px 1.4px at 50% 90%, rgba(255,255,255,.7), transparent),
+      radial-gradient(1.4px 1.4px at 33% 65%, rgba(255,255,255,.55), transparent);
+    background-repeat:no-repeat;
+    animation: twinkle 6s ease-in-out infinite alternate;
+  }
+  @keyframes twinkle{ from{opacity:.55} to{opacity:1} }
+  @media (prefers-reduced-motion: reduce){ .stars{animation:none; opacity:.8;} }
+
+  #app{position:relative; z-index:1; max-width:520px; margin:0 auto; min-height:100vh; padding-bottom:28px;}
+
+  /* ---------- Topbar ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; gap:10px;
+    padding:14px 18px; padding-top:max(14px, env(safe-area-inset-top));
+    background:rgba(6,9,22,.6); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .topbar .back{
+    width:34px; height:34px; border-radius:50%; border:1px solid var(--card-border);
+    background:var(--card-bg); color:var(--ink); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; flex:0 0 auto; transition:transform .15s ease, background .2s ease;
+  }
+  .topbar .back:active{transform:scale(.9);}
+  .topbar .back svg{width:16px;height:16px;}
+  .topbar .brand{
+    font-family:var(--font-display); font-size:22px; line-height:1;
+    background:var(--accent-grad); -webkit-background-clip:text; background-clip:text; color:transparent;
+    background-size:220% 100%;
+  }
+  .topbar .brand-sub{font-size:10.5px; color:var(--ink-faint); margin-top:2px; font-weight:600; letter-spacing:.03em;}
+  .topbar .brand-wrap{display:flex; flex-direction:column;}
+
+  /* ---------- Общие блоки ---------- */
+  .section{padding:18px;}
+  .hero-title{font-family:var(--font-display); font-size:40px; line-height:1; text-align:center;
+    background:var(--accent-grad); -webkit-background-clip:text; background-clip:text; color:transparent; background-size:220% 100%;}
+  .eyebrow{
+    text-align:center; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--gold-1); font-weight:700; opacity:.85; margin-bottom:6px;
+  }
+  .lede{text-align:center; color:var(--ink-soft); font-size:14px; line-height:1.5; margin:8px auto 0; max-width:340px;}
+
+  .glass-card{
+    background:var(--card-bg); border:1px solid var(--card-border); border-radius:var(--radius-lg);
+    box-shadow:0 18px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  }
+
+  /* ---------- Премиум-кнопка ---------- */
+  .btn-premium{
+    position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; padding:16px 20px; border:none; border-radius:16px; cursor:pointer;
+    font-family:var(--font-body); font-weight:800; font-size:15px; letter-spacing:.01em;
+    color:#221708;
+    background:var(--accent-grad); background-size:220% 100%;
+    animation: shimmerMove 3.2s linear infinite;
+    box-shadow:0 10px 26px rgba(217,180,106,.35), inset 0 1px 0 rgba(255,255,255,.6);
+    transition:transform .15s ease, box-shadow .2s ease;
+  }
+  .btn-premium svg, .btn-ghost svg{width:18px; height:18px; flex:0 0 auto;}
+  .btn-premium--compact{width:auto; display:inline-flex; margin:0 auto; padding:14px 28px;}
+  .btn-premium:disabled{opacity:.45; cursor:not-allowed; filter:grayscale(.4); animation:none;}
+  .btn-premium:not(:disabled):active{transform:scale(.97);}
+  .btn-premium::after{
+    content:""; position:absolute; top:0; left:-60%; width:40%; height:100%;
+    background:linear-gradient(115deg, transparent, rgba(255,255,255,.75), transparent);
+    transform:skewX(-20deg); animation: sweep 3.2s ease-in-out infinite;
+  }
+  @keyframes shimmerMove{0%{background-position:0% 50%}100%{background-position:220% 50%}}
+  @keyframes sweep{0%{left:-60%}45%{left:120%}100%{left:120%}}
+  @media (prefers-reduced-motion: reduce){ .btn-premium{animation:none;} .btn-premium::after{animation:none; display:none;} }
+
+  .btn-ghost{
+    width:100%; padding:14px 18px; border-radius:14px; border:1px solid var(--card-border);
+    background:rgba(255,255,255,.04); color:var(--ink); font-family:var(--font-body); font-weight:700; font-size:14px;
+    cursor:pointer;
+  }
+
+  /* ---------- Регистрация ---------- */
+  .reg-hero{padding:18px 18px 6px; text-align:center;}
+  .reg-hero .hero-banner{
+    border-radius:20px; overflow:hidden; margin:0 auto 14px; max-width:420px;
+    box-shadow:0 20px 50px rgba(0,0,0,.5), 0 0 60px rgba(216,190,130,.18);
+    aspect-ratio:640/323; background-size:cover; background-position:center;
+  }
+  .reg-card{margin:16px; padding:16px; }
+  .reg-card h3{margin:0 0 4px; font-size:15px;}
+  .reg-card p{margin:0 0 12px; font-size:12.5px; color:var(--ink-soft); line-height:1.5;}
+  .yform-wrap{
+    border-radius:14px; overflow:hidden; background:#fff; min-height:420px;
+    border:1px solid var(--card-border);
+  }
+  .yform-wrap iframe{width:100%; border:0; display:block; min-height:420px;}
+  .notice-box{
+    display:flex; gap:10px; align-items:flex-start; margin:14px 2px 4px;
+    padding:12px 14px; border-radius:14px;
+    background:linear-gradient(120deg, rgba(246,230,180,.14), rgba(246,230,180,.05));
+    border:1px solid rgba(246,230,180,.4);
+  }
+  .notice-box .glyph{font-size:18px; line-height:1.3; flex:0 0 auto;}
+  .notice-box p{margin:0; font-size:12.5px; line-height:1.5; color:var(--ink);}
+  .notice-box b{color:var(--gold-1);}
+  .confirm-row{display:flex; align-items:flex-start; gap:10px; margin:14px 2px 14px;}
+  .confirm-row input{margin-top:3px; width:18px; height:18px; accent-color:#d9b46a;}
+  .confirm-row label{font-size:12.5px; color:var(--ink-soft); line-height:1.45;}
+
+  /* ---------- Кастомные премиум-поля (Имя / Телефон) ---------- */
+  .field-group{margin-bottom:14px;}
+  .field-group label{display:block; font-size:11.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--gold-1); margin-bottom:6px; opacity:.9;}
+  .field-input-wrap{position:relative; display:flex; align-items:center;}
+  .field-input-wrap .ic{position:absolute; left:14px; width:17px; height:17px; color:var(--ink-faint); pointer-events:none;}
+  .field-input{
+    width:100%; padding:14px 14px 14px 40px; border-radius:14px; font-size:15px; font-family:var(--font-body);
+    background:rgba(255,255,255,.05); border:1px solid var(--card-border); color:var(--ink);
+    transition:border-color .2s ease, background .2s ease;
+  }
+  .field-input::placeholder{color:var(--ink-faint);}
+  .field-input:focus{outline:none; border-color:rgba(246,230,180,.55); background:rgba(255,255,255,.08);}
+  .field-error{font-size:11.5px; color:#f0a3a3; margin-top:5px; min-height:14px;}
+
+  .confirm-frame-note{display:flex; gap:8px; align-items:flex-start; margin:2px 2px 10px;}
+  .confirm-frame-note .glyph{font-size:16px;}
+  .confirm-frame-note p{margin:0; font-size:12px; color:var(--ink-soft); line-height:1.5;}
+  .step-dots{display:flex; gap:6px; justify-content:center; margin:2px 0 16px;}
+  .step-dots span{width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,.18);}
+  .step-dots span.active{background:var(--gold-1); width:16px; border-radius:4px;}
+
+  /* ---------- Модальное окно регистрации ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; z-index:50; display:flex; align-items:flex-end; justify-content:center;
+    background:rgba(4,6,14,.7); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    animation: fadeIn .25s ease;
+  }
+  @keyframes fadeIn{from{opacity:0} to{opacity:1}}
+  .modal-sheet{
+    width:100%; max-width:520px; max-height:90vh; overflow-y:auto;
+    background:linear-gradient(180deg, #171c3d 0%, #0e1230 100%);
+    border:1px solid rgba(246,230,180,.25);
+    border-bottom:none;
+    border-radius:26px 26px 0 0;
+    box-shadow:0 -10px 50px rgba(0,0,0,.5), 0 0 60px rgba(216,190,130,.12);
+    padding:10px 18px 26px;
+    animation: slideUp .32s cubic-bezier(.2,.8,.3,1);
+  }
+  @keyframes slideUp{from{transform:translateY(100%)} to{transform:translateY(0)}}
+  .modal-handle{width:40px; height:4px; border-radius:99px; background:rgba(255,255,255,.2); margin:8px auto 14px;}
+  .modal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:2px;}
+  .modal-head h3{margin:0; font-size:17px; font-family:var(--font-body); font-weight:800;}
+  .modal-close{
+    width:30px; height:30px; border-radius:50%; border:1px solid var(--card-border); background:rgba(255,255,255,.05);
+    display:flex; align-items:center; justify-content:center; color:var(--ink-soft); cursor:pointer; flex:0 0 auto;
+  }
+  .modal-sheet .lede-small{font-size:12.5px; color:var(--ink-soft); margin:6px 0 10px;}
+  .badge-row{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:14px;}
+  .badge-pill{
+    font-size:10.5px; font-weight:700; letter-spacing:.03em; color:var(--gold-1);
+    border:1px solid rgba(246,230,180,.35); border-radius:999px; padding:5px 10px;
+    background:rgba(246,230,180,.06);
+  }
+
+  /* ---------- Списки: города / районы ---------- */
+  .grid-cards{display:flex; flex-direction:column; gap:14px; padding:6px 18px 18px;}
+  .place-card{
+    position:relative; border-radius:var(--radius-lg); overflow:hidden; cursor:pointer;
+    border:1px solid var(--card-border); background:var(--card-bg-solid);
+    transition:transform .18s ease, box-shadow .2s ease;
+  }
+  .place-card:active{transform:scale(.98);}
+  .place-card .card-media{
+    width:100%; aspect-ratio:400/175; background-size:cover; background-position:center;
+    display:block;
+  }
+  .lot-hero-media{
+    width:100%; aspect-ratio:400/150; background-size:cover; background-position:center 65%;
+  }
+  .place-card .overlay{
+    position:absolute; left:0; right:0; bottom:0; padding:14px 16px;
+    background:linear-gradient(0deg, rgba(4,6,16,.92) 5%, rgba(4,6,16,.35) 70%, transparent 100%);
+    display:flex; align-items:flex-end; justify-content:space-between; gap:10px;
+  }
+  .place-card .name{font-weight:800; font-size:16px; color:var(--ink);}
+  .place-card .meta{font-size:11.5px; color:var(--ink-faint); margin-top:2px;}
+  .place-card .arrow{
+    width:32px; height:32px; border-radius:50%; background:var(--accent-grad); flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center; color:#241a08;
+  }
+  .place-card .soon-tag{
+    position:absolute; top:10px; right:10px; font-size:10px; font-weight:800; letter-spacing:.04em;
+    color:#241a08; background:var(--accent-grad); padding:4px 9px; border-radius:999px;
+  }
+  .section-title{padding:20px 18px 4px; font-size:19px; font-weight:800;}
+  .section-caption{padding:0 18px; color:var(--ink-soft); font-size:12.5px; margin-top:2px;}
+
+  /* ---------- Пустое состояние ---------- */
+  .empty-state{margin:10px 18px; padding:28px 20px; text-align:center; border-radius:var(--radius-lg);}
+  .empty-state .glyph{font-size:30px; margin-bottom:8px;}
+  .empty-state h4{margin:0 0 6px; font-size:15px;}
+  .empty-state p{margin:0; font-size:12.5px; color:var(--ink-soft); line-height:1.5;}
+
+  /* ---------- Карточки лотов ---------- */
+  .lot-card{
+    border-radius:var(--radius-md); padding:14px 16px; margin:0 18px 12px;
+  }
+  .lot-top{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;}
+  .lot-num{font-weight:800; font-size:15px;}
+  .lot-project{font-size:13px; color:var(--ink-soft); margin-bottom:12px;}
+  .lot-btn{
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    width:100%; padding:11px 14px; border-radius:12px; border:1px solid rgba(246,230,180,.4);
+    background:rgba(246,230,180,.08); color:var(--gold-1); font-weight:700; font-size:13px;
+    cursor:pointer; text-decoration:none;
+  }
+  .lot-btn:active{transform:scale(.98);}
+  .lot-btn svg{width:14px; height:14px;}
+
+  .footer-note{padding:22px 24px 8px; text-align:center; color:var(--ink-faint); font-size:11px; line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="stars"></div>
+<div id="app"></div>
+
+<script>
+/* ================================================================
+   ДАННЫЕ ДЛЯ РЕДАКТИРОВАНИЯ — «Лунный Свет»
+   ----------------------------------------------------------------
+   Здесь и только здесь агент добавляет города, районы и квартиры.
+   Всё остальное в файле трогать не нужно.
+
+   Структура:
+   CITIES = [
+     {
+       id: "латиницей, без пробелов, уникальный",
+       name: "Название города — как показать пользователю",
+       districts: [
+         {
+           id: "латиницей, уникальный внутри города",
+           name: "Название района / ЖК",
+           lots: [
+             { lot: "Лот 46", project: "ЖК Самолёт", url: "https://..." },
+             ...
+           ]
+         }
+       ]
+     }
+   ]
+
+   Если у города/района пока нет районов/лотов — просто оставьте
+   districts: [] или lots: [] — приложение само покажет красивую
+   заглушку "скоро появится".
+   ================================================================ */
+const CITIES = [
+  {
+    id: "krasnodar",
+    name: "Краснодар",
+    districts: [
+      {
+        id: "studii",
+        name: "Студии",
+        lots: [
+          { lot: "Лот 123", project: "Студия", url: "https://realty.yandex.ru/offer/5357448767722286413/" },
+          { lot: "Лот 118", project: "Студия", url: "https://realty.yandex.ru/offer/2464987314456608145/" },
+          { lot: "Лот 135", project: "Студия", url: "https://realty.yandex.ru/offer/8615200113099955476/" },
+          { lot: "Лот 105", project: "Студия", url: "https://realty.yandex.ru/offer/740526610380156169/" },
+          { lot: "Лот 101", project: "Студия", url: "https://realty.yandex.ru/offer/8756072450171854390/" },
+          { lot: "Лот 121", project: "Студия", url: "https://realty.yandex.ru/offer/907623496060873246/" },
+          { lot: "Лот 124", project: "Студия", url: "https://realty.yandex.ru/offer/5313784600595983221/" },
+          { lot: "Лот 125", project: "Студия", url: "https://realty.yandex.ru/offer/1036550934067594178/" },
+          { lot: "Лот 134", project: "Студия", url: "https://realty.yandex.ru/offer/5161856214769560671/" },
+          { lot: "Лот 150", project: "Студия", url: "https://realty.yandex.ru/offer/2872879542205817353/" }
+        ]
+      },
+      {
+        id: "odnushki",
+        name: "1-Комнатные квартиры",
+        children: [
+            {
+              id: "odnokomnatnye",
+              name: "Однокомнатные (ЖК разные)",
+              lots: [
+                { lot: "Лот 77", project: "ЖК Sport Village", url: "https://realty.yandex.ru/offer/5478069586029023518/" },
+                { lot: "Лот 35", project: "ЖК Гармония", url: "https://realty.yandex.ru/offer/5857097097411567081/" },
+                { lot: "Лот 54", project: "ЖК Губернский", url: "https://realty.yandex.ru/offer/5043628504861535318/" },
+                { lot: "Лот 17", project: "ЖК Облака", url: "https://realty.yandex.ru/offer/1926754784385718543/" },
+                { lot: "Лот 34", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/7391894086887216487/" },
+                { lot: "Лот 64", project: "ЖК Любимово", url: "https://realty.yandex.ru/offer/2890472958668500065/" },
+                { lot: "Лот 48", project: "ЖК Символ", url: "https://realty.yandex.ru/offer/8096463001452542308/" },
+                { lot: "Лот 1", project: "ЖК Прованс", url: "https://realty.yandex.ru/offer/3016023003870846935/" },
+                { lot: "Лот 24", project: "ЖК Дыхание", url: "https://realty.yandex.ru/offer/8414219437895114655/" },
+                { lot: "Лот 59", project: "ЖК Краски", url: "https://realty.yandex.ru/offer/5517441788007704681/" },
+                { lot: "Лот 58", project: "ЖК Друзья", url: "https://realty.yandex.ru/offer/4308371964870410476/" },
+                { lot: "Лот 96", project: "ЖК Ракурс", url: "https://realty.yandex.ru/offer/4864661911642238740/" },
+                { lot: "Лот 7", project: "Немецкая деревня", url: "https://realty.yandex.ru/offer/8454973367558837189/" },
+                { lot: "Лот 2", project: "Красных партизан", url: "https://realty.yandex.ru/offer/5042329508913172773/" },
+                { lot: "Лот 14", project: "ЖК Догма Парк", url: "https://realty.yandex.ru/offer/2560844476619816919/" },
+                { lot: "Лот 11", project: "ЖК Молодёжный", url: "https://realty.yandex.ru/offer/6441857863795348552/" },
+                { lot: "Лот 80", project: "ЖК Моно Квартал", url: "https://realty.yandex.ru/offer/2668473696542176093/" },
+                { lot: "Лот 16", project: "ЖК Nova Вита", url: "https://realty.yandex.ru/offer/1219356311917622302/" },
+                { lot: "Лот 53", project: "Жилой район «Новая Португалия»", url: "https://realty.yandex.ru/offer/3612818528728510873/" },
+                { lot: "Лот 70", project: "ЖК Догма Парк", url: "https://realty.yandex.ru/offer/2510488261648392956/" },
+                { lot: "Лот 86", project: "Клубный квартал Европа 9", url: "https://realty.yandex.ru/offer/4150802603832327986/" },
+                { lot: "Лот 15", project: "ЖК Облака", url: "https://realty.yandex.ru/offer/8073873096843884155/" },
+                { lot: "Лот 8", project: "ЖК История 2", url: "https://realty.yandex.ru/offer/3233570500842425216/" },
+                { lot: "Лот 89", project: "ЖК Сармат", url: "https://realty.yandex.ru/offer/5324865938614283456/" },
+                { lot: "Лот 75", project: "ЖК NEO Квартал", url: "https://realty.yandex.ru/offer/3179672742192787138/" },
+                { lot: "Лот 9", project: "ЖК Молодёжный", url: "https://realty.yandex.ru/offer/8943617144023492026/" },
+                { lot: "Лот 32", project: "Клубный квартал Европа 6", url: "https://realty.yandex.ru/offer/7682078718309647133/" }
+              ]
+            },
+            {
+              id: "samolet",
+              name: "Район «Самолёт»",
+              lots: [
+                { lot: "Лот 46", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/6052560927962713040/" },
+                { lot: "Лот 33", project: "ЖК Грани (Район Самолёт)", url: "https://realty.yandex.ru/offer/1187649864633100293/?from=share" },
+                { lot: "Лот 18", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/2915891798712491184/?from=share" },
+                { lot: "Лот 92", project: "ЖК Южане (Район Самолёт)", url: "https://realty.yandex.ru/offer/8729907570090591715/?from=share" },
+                { lot: "Лот 32", project: "Мкр-н Западный округ (Район Самолёт)", url: "https://realty.yandex.ru/offer/4301485869424899861/" },
+                { lot: "Лот 7",  project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/7632724937111350055/" },
+                { lot: "Лот 8",  project: "ЖК Сармат (Район Самолёт)", url: "https://realty.yandex.ru/offer/7307161831506419702/" },
+                { lot: "Лот 9",  project: "ЖК Исай-Парк (Район Самолёт)", url: "https://realty.yandex.ru/offer/8682064686117821928/" },
+                { lot: "Лот 10", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/4913600026794885747/" },
+                { lot: "Лот 98", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/7784747571046032317/?from=share" },
+                { lot: "Лот 14", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/6796010934565487817/?from=share" },
+                { lot: "Лот 13", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/4477384044974427227/?from=share" },
+                { lot: "Лот 2", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/874653063804710640/?from=share" },
+                { lot: "Лот 79", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/7442331367457067262/?from=share" },
+                { lot: "Лот 15", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/7713910886333342838/?from=share" },
+                { lot: "Лот 44", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/3163563346485233827/?from=share" },
+                { lot: "Лот 87", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/6297591975643121259/?from=share" },
+                { lot: "Лот 93", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/2329054420411618287/?from=share" },
+                { lot: "Лот 1", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/1198344018713756605/?from=share" },
+                { lot: "Лот 16", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/7380570347408135496/?from=share" },
+                { lot: "Лот 94", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/5640677907121182360/?from=share" },
+                { lot: "Лот 64", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/8565949519786979775/?from=share" },
+                { lot: "Лот 3", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/6416334593448017784/?from=share" },
+                { lot: "Лот 75", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/680523344790637174/?from=share" },
+                { lot: "Лот 84", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/1047283203258240428/?from=share" },
+                { lot: "Лот 45", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/4172440882585495010/?from=share" },
+                { lot: "Лот 52", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/5640470120824069244/?from=share" },
+                { lot: "Лот 61", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/7531546876579039985/?from=share" },
+                { lot: "Лот 11", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/3861011351739414860/?from=share" },
+                { lot: "Лот 4", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/827846586217110473/?from=share" },
+                { lot: "Лот 5", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/9187273073628720396/?from=share" },
+                { lot: "Лот 6", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/6003196963074362210/?from=share" },
+                { lot: "Лот 86", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/1946121520836033028/?from=share" },
+                { lot: "Лот 90", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/2429550041374757155/?from=share" },
+                { lot: "Лот 62", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/8284088516498686870/?from=share" },
+                { lot: "Лот 38", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/5594442342085394636/?from=share" },
+                { lot: "Лот 60", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/7752747791177210269/?from=share" },
+                { lot: "Лот 72", project: "ЖК Самолёт", url: "https://realty.yandex.ru/offer/2690294881427190511/?from=share" }
+              ]
+            }
+      ,
+            {
+              id: "gubernskiy",
+              name: "Мкр-н ГУБЕРНСКИЙ",
+              lots: [
+                { lot: "Лот 79", project: "Мкр-н ГУБЕРНСКИЙ, 1-к. квартира", url: "https://realty.yandex.ru/offer/6399966585251911960/?from=share" },
+                { lot: "Лот 82", project: "Мкр-н ГУБЕРНСКИЙ, 1-к. квартира", url: "https://realty.yandex.ru/offer/62329243829600174/?from=share" },
+                { lot: "Лот 43", project: "Мкр-н ГУБЕРНСКИЙ, 1-к. квартира", url: "https://realty.yandex.ru/offer/7468153140198954280/?from=share" },
+                { lot: "Лот 40", project: "Мкр-н ГУБЕРНСКИЙ, 1-к. квартира", url: "https://realty.yandex.ru/offer/2354938262696982487/?from=share" },
+                { lot: "Лот 5", project: "Мкр-н ГУБЕРНСКИЙ, 1-к. квартира", url: "https://realty.yandex.ru/offer/4974520053313832007/?from=share" },
+                { lot: "Лот 25", project: "Мкр-н ГУБЕРНСКИЙ, 1-к. квартира", url: "https://realty.yandex.ru/offer/6901608721812054532/?from=share" },
+                { lot: "Лот 81", project: "Мкр-н ГУБЕРНСКИЙ, 1-к. квартира", url: "https://realty.yandex.ru/offer/7629658952866800879/?from=share" }
+              ]
+            },
+            {
+              id: "lubimovo",
+              name: "Мкр-н Любимово",
+              lots: [
+                { lot: "Лот 49", project: "Мкр-н Любимово, 1-к. квартира", url: "https://realty.yandex.ru/offer/2700179050037143203/?from=share" },
+                { lot: "Лот 6", project: "Мкр-н Любимово, 1-к. квартира", url: "https://realty.yandex.ru/offer/3947238728135449121/?from=share" }
+              ]
+            },
+            {
+              id: "ubileiny",
+              name: "ЖК Юбилейный",
+              lots: [
+                { lot: "Лот 20", project: "ЖК Юбилейный", url: "https://realty.yandex.ru/offer/7803465575586017803/?from=share" }
+              ]
+            },
+            {
+              id: "panorama",
+              name: "ЖК Панорама (район Парка Галицкого)",
+              lots: [
+                { lot: "Лот 13", project: "ЖК Панорама (район Парка Галицкого)", url: "https://realty.yandex.ru/offer/2248630491598782355/?from=share" },
+                { lot: "Лот 94", project: "ЖК Панорама (район Парка Галицкого)", url: "https://realty.yandex.ru/offer/2166113634941349214/?from=share" },
+                { lot: "Лот 78", project: "ЖК Панорама (район Парка Галицкого)", url: "https://realty.yandex.ru/offer/1362412622923124166/?from=share" },
+                { lot: "Лот 80", project: "ЖК Панорама (район Парка Галицкого)", url: "https://realty.yandex.ru/offer/5599620921282913254/?from=share" }
+              ]
+            },
+            {
+              id: "dyhanie",
+              name: "ЖК Дыхание (Любимово Молл)",
+              lots: [
+                { lot: "Лот 23", project: "ЖК Дыхание (Любимово Молл)", url: "https://realty.yandex.ru/offer/4278104464107928582/?from=share" },
+                { lot: "Лот 48", project: "ЖК Дыхание (Любимово Молл)", url: "https://realty.yandex.ru/offer/8509720075439629434/?from=share" },
+                { lot: "Лот 38", project: "ЖК Дыхание (Любимово Молл)", url: "https://realty.yandex.ru/offer/8819913268271192183/?from=share" },
+                { lot: "Лот 70", project: "ЖК Дыхание (Любимово Молл)", url: "https://realty.yandex.ru/offer/9217348651345738804/?from=share" },
+                { lot: "Лот 72", project: "ЖК Дыхание (Любимово Молл)", url: "https://realty.yandex.ru/offer/9073845187798987637/?from=share" },
+                { lot: "Лот 85", project: "ЖК Дыхание (Любимово Молл)", url: "https://realty.yandex.ru/offer/1562267003863842761/?from=share" },
+                { lot: "Лот 16", project: "ЖК Дыхание (Любимово Молл)", url: "https://realty.yandex.ru/offer/4944262249683969433/?from=share" },
+                { lot: "Лот 97", project: "ЖК Дыхание (Любимово Молл)", url: "https://realty.yandex.ru/offer/5996759807078954148/?from=share" }
+              ]
+            },
+            {
+              id: "festivalny",
+              name: "Фестивальный мкр-н",
+              lots: [
+                { lot: "Лот 55", project: "Фестивальный мкр-н", url: "https://realty.yandex.ru/offer/690638138661290522/?from=share" },
+                { lot: "Лот 53", project: "Фестивальный мкр-н", url: "https://realty.yandex.ru/offer/957065345024544808/?from=share" },
+                { lot: "Лот 82", project: "Фестивальный мкр-н", url: "https://realty.yandex.ru/offer/3365849371085632817/?from=share" },
+                { lot: "Лот 68", project: "Фестивальный мкр-н", url: "https://realty.yandex.ru/offer/5164679055376485790/?from=share" }
+              ]
+            },
+            {
+              id: "muzykalny",
+              name: "Музыкальный мкр-н",
+              lots: [
+                { lot: "Лот 18", project: "Музыкальный мкр-н", url: "https://realty.yandex.ru/offer/1890006691976174677/?from=share" },
+                { lot: "Лот 95", project: "Музыкальный мкр-н", url: "https://realty.yandex.ru/offer/2896958274458975519/?from=share" },
+                { lot: "Лот 94", project: "Музыкальный мкр-н", url: "https://realty.yandex.ru/offer/328216195700434116/?from=share" },
+                { lot: "Лот 9", project: "Музыкальный мкр-н", url: "https://realty.yandex.ru/offer/2649641577716277284/?from=share" },
+                { lot: "Лот 19", project: "Музыкальный мкр-н", url: "https://realty.yandex.ru/offer/833230981854862143/?from=share" },
+                { lot: "Лот 66", project: "Музыкальный мкр-н", url: "https://realty.yandex.ru/offer/1990306687432890325/?from=share" },
+                { lot: "Лот 33", project: "Музыкальный мкр-н", url: "https://realty.yandex.ru/offer/4900896587540026229/?from=share" },
+                { lot: "Лот 62", project: "Музыкальный мкр-н", url: "https://realty.yandex.ru/offer/39137433325824408/?from=share" },
+                { lot: "Лот 1", project: "Музыкальный мкр-н", url: "https://realty.yandex.ru/offer/1211022711923948186/?from=share" },
+                { lot: "Лот 11", project: "Музыкальный мкр-н", url: "https://realty.yandex.ru/offer/7445502182888005793/?from=share" },
+                { lot: "Лот 84", project: "Музыкальный мкр-н", url: "https://realty.yandex.ru/offer/4223169743744319368/?from=share" }
+              ]
+            },
+            {
+              id: "metalnikova",
+              name: "р-н Петра Метальникова",
+              lots: [
+                { lot: "Лот 76", project: "р-н Петра Метальникова", url: "https://realty.yandex.ru/offer/7783964592279944932/?from=share" },
+                { lot: "Лот 27", project: "р-н Петра Метальникова", url: "https://realty.yandex.ru/offer/6193901612807107020/?from=share" },
+                { lot: "Лот 98", project: "р-н Петра Метальникова", url: "https://realty.yandex.ru/offer/2547336330651983946/?from=share" },
+                { lot: "Лот 23", project: "р-н Петра Метальникова", url: "https://realty.yandex.ru/offer/3865833148930634392/?from=share" },
+                { lot: "Лот 75", project: "р-н Петра Метальникова", url: "https://realty.yandex.ru/offer/3474220523122370314/?from=share" },
+                { lot: "Лот 38", project: "р-н Петра Метальникова", url: "https://realty.yandex.ru/offer/6928238971584501412/?from=share" },
+                { lot: "Лот 34", project: "р-н Петра Метальникова", url: "https://realty.yandex.ru/offer/2441205108328832905/?from=share" },
+                { lot: "Лот 31", project: "р-н Петра Метальникова", url: "https://realty.yandex.ru/offer/7958459834614551385/?from=share" },
+                { lot: "Лот 55", project: "р-н Петра Метальникова", url: "https://realty.yandex.ru/offer/8320780673831075478/?from=share" },
+                { lot: "Лот 18", project: "р-н Петра Метальникова", url: "https://realty.yandex.ru/offer/6241833289909711679/?from=share" }
+              ]
+            },
+            {
+              id: "dostoyanie",
+              name: "ЖК Достояние",
+              lots: [
+                { lot: "Лот 1", project: "ЖК Достояние", url: "https://realty.yandex.ru/offer/2650930402958052909/?from=share" },
+                { lot: "Лот 100", project: "ЖК Достояние", url: "https://realty.yandex.ru/offer/1810252835564279351/?from=share" }
+              ]
+            }
+        ]
+      },
+      {
+        id: "budget-16-19k",
+        name: "Квартиры 16 000–19 000 ₽/мес",
+        lots: [
+          { lot: "Лот 100", project: "ЖК «Зелёный театр», улица Западный Обход, 39/1к1 · 36 м² · 16 500 ₽/мес", url: "https://vk.cc/d1X5QH" },
+          { lot: "Лот 85", project: "посёлок Российский, улица Атамана Бабыча, 5 · 34 м² · 16 000 ₽/мес", url: "https://vk.cc/d1X8us" },
+          { lot: "Лот 37", project: "Краснодар, Зеленоградская улица, 40 · 47 м² · 16 000 ₽/мес", url: "https://vk.cc/d1X9Ld" },
+          { lot: "Лот 71", project: "посёлок Южный, Войсковая улица, 8/2 · 33 м² · 16 500 ₽/мес", url: "https://vk.cc/d1X9Ta" },
+          { lot: "Лот 5", project: "Краснодар, улица Генерала Петрова, 39 · 36 м² · 17 500 ₽/мес", url: "https://vk.cc/d1X8CA" },
+          { lot: "Лот 69", project: "Краснодар, микрорайон Юбилейный, проспект Чекистов, 8/3 · 37 м² · 17 500 ₽/мес", url: "https://vk.cc/d1X91P" },
+          { lot: "Лот 22", project: "Краснодар, улица Селезнёва, 216 · 34 м² · 13 000 ₽/мес", url: "https://vk.cc/d1X9bu" },
+          { lot: "Лот 72", project: "Микрорайон «Самолёт», Краснодар, улица Константина Гондаря, 93 · 19 м² · 19 500 ₽/мес", url: "https://vk.cc/d1X7ej" },
+          { lot: "Лот 98", project: "Краснодар, микрорайон 2-я Площадка, улица Ветеранов, 83к1 · 35 м² · 19 000 ₽/мес", url: "https://vk.cc/d1X7qE" },
+          { lot: "Лот 63", project: "Краснодар, Венецианская улица, 10 · 40 м² · 19 500 ₽/мес", url: "https://vk.cc/d1X7Jj" },
+          { lot: "Лот 84", project: "Краснодар, улица Красных Партизан, 1/3к6 · 31 м² · 19 500 ₽/мес", url: "https://vk.cc/d1X86S" },
+          { lot: "Лот 11", project: "Краснодар, Прикубанский внутригородской округ, Новый микрорайон, 2-я Трудовая улица, 1 · 35 м² · 18 500 ₽/мес", url: "https://vk.cc/d1X8hi" },
+          { lot: "Лот 80", project: "Краснодар, улица имени 75-летия Победы, 26к1 · 39 м² · 19 500 ₽/мес", url: "https://vk.cc/d1X8Ic" },
+          { lot: "Лот 12", project: "Краснодар, улица Академика Лукьяненко, 30 · 40 м² · 17 500 ₽/мес", url: "https://vk.cc/d1X8Qo" },
+          { lot: "Лот 16", project: "аул Новая Адыгея, Бжегокайская улица, 25/1к8 · 26 м² · 19 500 ₽/мес", url: "https://vk.cc/d1X9hA" },
+          { lot: "Лот 2", project: "аул Новая Адыгея, Бжегокайская улица, 90/1к3 · 33,9 м² · 19 000 ₽/мес", url: "https://vk.cc/d1X9mO" },
+          { lot: "Лот 42", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/346164541023610949/" },
+          { lot: "Лот 44", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/7357068422524404282/" },
+          { lot: "Лот 1", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/2864304128208426560/" },
+          { lot: "Лот 82", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/2547771303871889054/" },
+          { lot: "Лот 48", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/6862494749924684530/" },
+          { lot: "Лот 24", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/7111556221140589178/" },
+          { lot: "Лот 13", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/6381195270754958428/" },
+          { lot: "Лот 49", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/8604214855626550720/" },
+          { lot: "Лот 88", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/8603015395426955437/" },
+          { lot: "Лот 6", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/4350350301920151310/" },
+          { lot: "Лот 35", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/615750237948716/" },
+          { lot: "Лот 7", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/8645893173804449408/" },
+          { lot: "Лот 29", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/6773634070674455613/" },
+          { lot: "Лот 36", project: "ЖК Самолёт · 1-к. квартира", url: "https://realty.yandex.ru/offer/3135800608938509178/" },
+          { lot: "Лот 3", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/891721177312839645/" },
+          { lot: "Лот 8", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/64565086866814736/" },
+          { lot: "Лот 58", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/5616869225464671479/" },
+          { lot: "Лот 10", project: "ЖК Sport Village (Район Самолёт) · 1-к. квартира", url: "https://realty.yandex.ru/offer/351176851356366086/" },
+          { lot: "Лот 14", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/6912339343035249765/" },
+          { lot: "Лот 15", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/8412613844502208871/" },
+          { lot: "Лот 17", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/7851579381682380096/" },
+          { lot: "Лот 67", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/4630889802839692554/" },
+          { lot: "Лот 18", project: "Музыкальный мкр-н · 1-к. квартира", url: "https://realty.yandex.ru/offer/3070815351905912608/" },
+          { lot: "Лот 70", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/2958148252929143933/" },
+          { lot: "Лот 96", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/6790776800095018016/" },
+          { lot: "Лот 30", project: "ЖК Самолёт · 1-к. квартира", url: "https://realty.yandex.ru/offer/7604819408964767771/" },
+          { lot: "Лот 61", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/7592394565668389110/" },
+          { lot: "Лот 93", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/3361422582722207165/" },
+          { lot: "Лот 19", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/750184096462344756/" },
+          { lot: "Лот 20", project: "ЖК Самолёт · 1-к. квартира", url: "https://realty.yandex.ru/offer/4460993265646920729/" },
+          { lot: "Лот 40", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/8444376229644006348/" },
+          { lot: "Лот 99", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/7223713373775489105/" },
+          { lot: "Лот 4", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/2268616112756717313/" },
+          { lot: "Лот 21", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/5019294015224966816/" },
+          { lot: "Лот 23", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/4331021287516479568/" },
+          { lot: "Лот 34", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/2167963340068285579/" },
+          { lot: "Лот 25", project: "Краснодар · 1-к. квартира", url: "https://realty.yandex.ru/offer/6275564236690243605/" }
+        ]
+      }
+      // Чтобы добавить новый блок в Краснодаре — скопируйте { id, name, lots } и вставьте сюда через запятую.
+    ]
+  },
+  {
+    id: "ekb",
+    name: "Екатеринбург",
+    districts: [
+      {
+        id: "ekb-all",
+        name: "Екатеринбург",
+        lots: [
+          { lot: "Лот 196", project: "Екатеринбург", url: "https://realty.yandex.ru/offer/6529242642442469236/" },
+          { lot: "Лот 100", project: "Екатеринбург", url: "https://realty.yandex.ru/offer/2743637074561210482/" },
+          { lot: "Лот 118", project: "Екатеринбург", url: "https://realty.yandex.ru/offer/5539722805436328454/" },
+          { lot: "Лот 134", project: "Екатеринбург", url: "https://realty.yandex.ru/offer/2312804990291885530/" }
+        ]
+      }
+    ]
+  },
+  { id: "rostov",      name: "Ростов",                         districts: [] },
+  { id: "novosibirsk", name: "Новосибирск",                    districts: [] },
+  { id: "moscow",      name: "Москва и область",              districts: [] },
+  { id: "spb",         name: "Санкт-Петербург и область",      districts: [] }
+];
+
+/* Ссылка на форму сбора контактов (Яндекс.Формы) — регистрация */
+const YANDEX_FORM_URL = "https://forms.yandex.ru/u/6a795a641f1eb58aa72b544a?iframe=1";
+
+/* ID полей «Имя», «Телефон» и (опционально) «Telegram user_id» в этой форме — нужны для автозаполнения.
+   Как найти: откройте форму на редактирование на forms.yandex.ru →
+   у каждого вопроса нажмите «Показать настройки» вверху блока —
+   там будет ID вида text_2643945 или phone_2752014. Впишите их сюда:
+
+   Поле "tgUserId" — необязательное. Чтобы им пользоваться:
+   1) добавьте в форму ещё один вопрос типа «Короткий текст» с названием
+      например "Telegram user_id" (можно скрыть его от заполнения человеком —
+      см. справку Яндекс.Форм «Настроить предзаполнение скрытого поля»);
+   2) возьмите его ID тем же способом и впишите ниже.
+   Тогда в таблице ответов рядом с именем и телефоном будет появляться
+   user_id человека в Telegram — это то, что понадобится для рассылки уведомлений
+   (в приватном чате с ботом отправка идёт по этому же id как chat_id).
+
+   ВАЖНО: если эта форма используется и MAX-версией приложения (index.html) —
+   не путайте это поле с её "maxChatId", иначе в таблице перемешаются
+   id из разных мессенджеров. */
+const YANDEX_FIELD_IDS = {
+  name:     "answer_short_text_9008985592650724",
+  phone:    "answer_short_text_9008985592662914",
+  tgUserId: ""   // впишите ID поля, когда добавите его в форму (см. выше)
+};
+/* ================================================================
+   Конец блока данных. Ниже — логика приложения, менять не нужно.
+   ================================================================ */
+
+/* ---------- Telegram WebApp Bridge helpers (безопасные обёртки) ---------- */
+const MAX = (window.Telegram && window.Telegram.WebApp) || null;
+
+/* Скрипт telegram-web-app.js — публичный файл, он загрузится и в обычном браузере,
+   поэтому наличие window.Telegram.WebApp ещё не значит, что мы внутри Telegram.
+   Настоящая сессия всегда даёт непустой initData — на это и опираемся,
+   плюс проверяем iframe (для Telegram Web в браузере на компьютере). */
+const INSIDE_MAX = !!MAX && (
+  (window.self !== window.top) ||
+  (typeof MAX.initData === 'string' && MAX.initData.length > 0)
+);
+
+/* Достаём id человека, который открыл мини-апп внутри Telegram.
+   Понадобится позже для рассылки уведомлений через Bot API (sendMessage).
+   В приватном чате с ботом chat_id для отправки сообщений совпадает с user.id. */
+function getMaxContext(){
+  try{
+    if (!MAX || !MAX.initDataUnsafe) return null;
+    const user = MAX.initDataUnsafe.user || null;
+    const uid = user && user.id != null ? String(user.id) : '';
+    return { chatId: uid, userId: uid };
+  }catch(e){ return null; }
+}
+const MAX_CONTEXT = getMaxContext();
+
+/* Сигнал Telegram, что интерфейс отрисован — обязательно по документации,
+   без него часть методов моста может не срабатывать. */
+try{ if (INSIDE_MAX && typeof MAX.ready === 'function') MAX.ready(); }catch(e){}
+
+function openExternal(url){
+  try{
+    if (INSIDE_MAX && typeof MAX.openLink === 'function'){ MAX.openLink(url); return; }
+  }catch(e){}
+  window.open(url, '_blank', 'noopener');
+}
+function haptic(style){
+  try{ if (INSIDE_MAX && MAX.HapticFeedback) MAX.HapticFeedback.impactOccurred(style || 'light'); }catch(e){}
+}
+function setupBackButton(onBack){
+  try{
+    if (!INSIDE_MAX || !MAX.BackButton) return;
+    MAX.BackButton.show();
+    MAX.BackButton.onClick(onBack);
+  }catch(e){}
+}
+function hideBackButton(){
+  try{ if (INSIDE_MAX && MAX.BackButton) MAX.BackButton.hide(); }catch(e){}
+}
+
+/* ---------- Фирменное фото «Лунный Свет» (луна + ночной город) ---------- */
+/* Оригинал прислан агентством — используется как премиальный фон карточек. */
+const SKYLINE_IMG = "data:image/jpeg;base64,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";
+
+/* Каждому городу — свой оттенок лунного света поверх одного и того же фото */
+const CITY_THEME = {
+  krasnodar:   { filter: "none" },                                              // тёплое золото (оригинал)
+  moscow:      { filter: "saturate(.55) brightness(1.08) contrast(1.05)" },     // серебро
+  spb:         { filter: "hue-rotate(-45deg) saturate(1.2)" },                  // изумрудная ночь
+  ekb:         { filter: "hue-rotate(50deg) saturate(1.15)" },                  // аметист
+  rostov:      { filter: "hue-rotate(100deg) saturate(1.25) brightness(1.05)" },// розовое золото
+  novosibirsk: { filter: "hue-rotate(-30deg) saturate(.9) brightness(1.1)" }    // ледяная лазурь
+};
+
+function cardMediaStyle(themeKey){
+  const theme = CITY_THEME[themeKey] || CITY_THEME.krasnodar;
+  return `background-image:url('${SKYLINE_IMG}'); filter:${theme.filter};`;
+}
+
+/* ---------- Иконки ---------- */
+/* ---------- Иконки ---------- */
+const ICON_ARROW_RIGHT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>`;
+const ICON_BACK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>`;
+const ICON_LINK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5h5v5M19 5l-8 8M9 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/></svg>`;
+
+/* ---------- Роутер ---------- */
+const REGISTERED_KEY = 'ls_registered_v1';
+function isRegistered(){
+  try{ return localStorage.getItem(REGISTERED_KEY) === '1'; }catch(e){ return false; }
+}
+function setRegistered(){
+  try{ localStorage.setItem(REGISTERED_KEY, '1'); }catch(e){}
+}
+
+let stack = [ isRegistered() ? {screen:'cities'} : {screen:'register'} ];
+
+function push(state){ stack.push(state); render(); window.scrollTo(0,0); }
+function goBack(){ if(stack.length>1){ stack.pop(); render(); window.scrollTo(0,0); } }
+
+function topbar(title, showBack){
+  return `
+    <div class="topbar">
+      ${showBack ? `<div class="back" id="btn-back">${ICON_BACK}</div>` : `<div style="width:34px"></div>`}
+      <div class="brand-wrap">
+        <div class="brand">${title || 'Лунный Свет'}</div>
+        <div class="brand-sub">АРЕНДА КВАРТИР · БЕЗ ЗАЛОГА И КОМИССИИ</div>
+      </div>
+    </div>`;
+}
+
+function render(){
+  const state = stack[stack.length-1];
+  const app = document.getElementById('app');
+
+  if (state.screen === 'register'){
+    hideBackButton();
+    app.innerHTML = renderRegister();
+    bindRegister();
+    return;
+  }
+
+  if (state.screen === 'cities'){
+    setupBackButton(()=>{ /* корневой экран — уходить некуда внутри app */ });
+    if (stack.length===1){ hideBackButton(); }
+    app.innerHTML = topbar('Лунный Свет', false) + renderCities();
+    bindPlaceCards('.city-card', (id)=>{
+      const c = CITIES.find(x=>x.id===id);
+      if (c && c.districts.length===1 && c.districts[0].lots) push({screen:'lots', cityId:id, districtId:c.districts[0].id});
+      else push({screen:'districts', cityId:id});
+    });
+    return;
+  }
+
+  if (state.screen === 'districts'){
+    setupBackButton(goBack);
+    const city = CITIES.find(c=>c.id===state.cityId);
+    const grp = (city && state.groupId) ? city.districts.find(d=>d.id===state.groupId) : null;
+    app.innerHTML = topbar(grp ? grp.name : (city ? city.name : 'Район'), true) + renderDistricts(city, grp);
+    document.getElementById('btn-back')?.addEventListener('click', goBack);
+    bindPlaceCards('.district-card', (id)=>{
+      const list = grp ? grp.children : city.districts;
+      const item = list.find(d=>d.id===id);
+      if (item && item.children) push({screen:'districts', cityId: state.cityId, groupId:id});
+      else push({screen:'lots', cityId: state.cityId, groupId: state.groupId, districtId:id});
+    });
+    return;
+  }
+
+  if (state.screen === 'lots'){
+    setupBackButton(goBack);
+    const city = CITIES.find(c=>c.id===state.cityId);
+    const lotList = city ? (state.groupId ? ((city.districts.find(d=>d.id===state.groupId)||{}).children||[]) : city.districts) : [];
+    const district = lotList.find(d=>d.id===state.districtId);
+    app.innerHTML = topbar(district ? district.name : 'Квартиры', true) + renderLots(city, district);
+    document.getElementById('btn-back')?.addEventListener('click', goBack);
+    bindLotButtons();
+    return;
+  }
+}
+
+/* ---------- Экран регистрации ---------- */
+let regModalOpen = false;
+let regStep = 'form'; // 'form' -> красивые поля, 'confirm' -> предзаполненная форма Яндекса
+let regData = { name: '', phone: '' };
+
+function renderRegister(){
+  return `
+    <div class="reg-hero">
+      <div class="hero-banner" style="${cardMediaStyle('krasnodar')}"></div>
+      <div class="eyebrow">Агентство недвижимости</div>
+      <div class="hero-title">Лунный Свет</div>
+      <p class="lede">Аренда квартир напрямую от собственников — без залога и без комиссии.</p>
+      <div class="badge-row">
+        <span class="badge-pill">БЕЗ ЗАЛОГА</span>
+        <span class="badge-pill">БЕЗ КОМИССИИ</span>
+      </div>
+    </div>
+
+    <div class="section" style="padding-top:6px; text-align:center;">
+      <button class="btn-premium btn-premium--compact" id="btn-open-reg">
+        Регистрация ${ICON_ARROW_RIGHT}
+      </button>
+      <div class="footer-note" style="padding-top:14px;">Доступ к каталогу открывается после регистрации</div>
+    </div>
+
+    ${regModalOpen ? renderRegisterModal() : ''}
+  `;
+}
+
+const ICON_USER = `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>`;
+const ICON_PHONE = `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`;
+
+function renderRegisterModal(){
+  if (regStep === 'confirm'){
+    const prefillUrl = buildYandexPrefillUrl(regData.name, regData.phone);
+    return `
+      <div class="modal-overlay" id="reg-overlay">
+        <div class="modal-sheet" id="reg-sheet">
+          <div class="modal-handle"></div>
+          <div class="modal-head">
+            <h3>Последний шаг</h3>
+            <div class="modal-close" id="modal-close">✕</div>
+          </div>
+          <div class="step-dots"><span></span><span class="active"></span></div>
+
+          <div class="confirm-frame-note">
+            <span class="glyph">☾</span>
+            <p>Мы подставили ваше имя и телефон в форму ниже — просто нажмите в ней «Отправить», чтобы завершить регистрацию.</p>
+          </div>
+
+          <div class="yform-wrap">
+            <iframe src="${prefillUrl}" frameborder="0" name="ya-form-6a795a641f1eb58aa72b544a" width="100%" height="420"></iframe>
+          </div>
+
+          <div class="confirm-row">
+            <input type="checkbox" id="confirm-sent">
+            <label for="confirm-sent">Я нажал(а) «Отправить» в форме выше</label>
+          </div>
+
+          <button class="btn-premium" id="btn-enter" disabled>
+            Войти в каталог ${ICON_ARROW_RIGHT}
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="modal-overlay" id="reg-overlay">
+      <div class="modal-sheet" id="reg-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-head">
+          <h3>Регистрация</h3>
+          <div class="modal-close" id="modal-close">✕</div>
+        </div>
+        <div class="step-dots"><span class="active"></span><span></span></div>
+        <p class="lede-small">Укажите имя и телефон, чтобы открыть каталог квартир.</p>
+
+        <div class="notice-box">
+          <span class="glyph">☾</span>
+          <p><b>Важно:</b> указывайте номер телефона, по которому вы лично будете связываться с собственниками квартир. Если номер окажется недействующим, льготные условия — без залога и без комиссии — не будут действовать.</p>
+        </div>
+
+        <div class="field-group">
+          <label for="f-name">Ваше имя</label>
+          <div class="field-input-wrap">
+            ${ICON_USER}
+            <input class="field-input" id="f-name" type="text" placeholder="Например, Анна" value="${escapeAttr(regData.name)}" autocomplete="name">
+          </div>
+          <div class="field-error" id="err-name"></div>
+        </div>
+
+        <div class="field-group">
+          <label for="f-phone">Номер телефона</label>
+          <div class="field-input-wrap">
+            ${ICON_PHONE}
+            <input class="field-input" id="f-phone" type="tel" placeholder="+7 900 000-00-00" value="${escapeAttr(regData.phone)}" autocomplete="tel">
+          </div>
+          <div class="field-error" id="err-phone"></div>
+        </div>
+
+        <button class="btn-premium" id="btn-continue">
+          Продолжить ${ICON_ARROW_RIGHT}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function buildYandexPrefillUrl(name, phone){
+  const base = YANDEX_FORM_URL.split('?')[0];
+  const params = new URLSearchParams();
+  params.set('iframe', '1');
+  if (YANDEX_FIELD_IDS.name)  params.set(YANDEX_FIELD_IDS.name, name);
+  if (YANDEX_FIELD_IDS.phone) params.set(YANDEX_FIELD_IDS.phone, phone);
+  if (YANDEX_FIELD_IDS.tgUserId && MAX_CONTEXT && MAX_CONTEXT.chatId){
+    params.set(YANDEX_FIELD_IDS.tgUserId, MAX_CONTEXT.chatId);
+  }
+  return base + '?' + params.toString();
+}
+
+function bindRegister(){
+  document.getElementById('btn-open-reg')?.addEventListener('click', ()=>{
+    haptic('light');
+    regStep = 'form';
+    regModalOpen = true;
+    render();
+  });
+
+  const overlay = document.getElementById('reg-overlay');
+  if (!overlay) return;
+
+  document.getElementById('modal-close')?.addEventListener('click', ()=>{
+    haptic('light');
+    regModalOpen = false;
+    render();
+  });
+  overlay.addEventListener('click', (e)=>{
+    if (e.target === overlay){ regModalOpen = false; render(); }
+  });
+
+  if (regStep === 'form'){
+    const btnContinue = document.getElementById('btn-continue');
+    btnContinue.addEventListener('click', ()=>{
+      const nameEl = document.getElementById('f-name');
+      const phoneEl = document.getElementById('f-phone');
+      const errName = document.getElementById('err-name');
+      const errPhone = document.getElementById('err-phone');
+      const name = nameEl.value.trim();
+      const phone = phoneEl.value.trim();
+      let ok = true;
+
+      if (name.length < 2){ errName.textContent = 'Укажите, как вас зовут'; ok = false; } else { errName.textContent=''; }
+      const phoneDigits = phone.replace(/\D/g,'');
+      if (phoneDigits.length < 10){ errPhone.textContent = 'Проверьте номер телефона'; ok = false; } else { errPhone.textContent=''; }
+
+      if (!ok){ haptic('medium'); return; }
+
+      regData.name = name;
+      regData.phone = phone;
+      haptic('medium');
+      regStep = 'confirm';
+      render();
+    });
+    return;
+  }
+
+  const checkbox = document.getElementById('confirm-sent');
+  const btn = document.getElementById('btn-enter');
+  checkbox.addEventListener('change', ()=>{ btn.disabled = !checkbox.checked; });
+  btn.addEventListener('click', ()=>{
+    if (btn.disabled) return;
+    haptic('medium');
+    setRegistered();
+    stack = [{screen:'cities'}];
+    render();
+  });
+}
+
+/* ---------- Экран городов ---------- */
+function renderCities(){
+  const cards = CITIES.map(city => placeCardHTML({
+    seedKey: 'city-'+city.id,
+    themeKey: city.id,
+    name: city.name,
+    meta: (city.districts.length===1 && city.districts[0].lots) ? `${city.districts[0].lots.length} вариантов аренды` : city.districts.length ? `${city.districts.length} подборки в каталоге` : 'Скоро появится в каталоге',
+    soon: city.districts.length === 0,
+    cls: 'city-card',
+    dataId: city.id
+  })).join('');
+
+  return `
+    <div class="section-title">Выберите город</div>
+    <div class="section-caption">Мы подберём варианты аренды в нужном вам районе</div>
+    <div class="grid-cards">${cards}</div>
+  `;
+}
+
+/* ---------- Экран районов ---------- */
+function renderDistricts(city, grp){
+  if (!city){
+    return emptyStateHTML('Город не найден', 'Похоже, что-то пошло не так. Вернитесь назад и выберите город заново.');
+  }
+  if (!city.districts.length){
+    return `
+      <div class="section-title">${city.name}</div>
+      ${emptyStateHTML('Скоро появится', `Мы уже подбираем варианты аренды в городе «${city.name}». Загляните немного позже — список районов появится здесь.`)}
+    `;
+  }
+  const items = grp ? grp.children : city.districts;
+  const cnt = d => d.children ? d.children.reduce((n,c)=>n+c.lots.length,0) : d.lots.length;
+  const cards = items.map(d => placeCardHTML({
+    seedKey: 'district-'+city.id+'-'+d.id,
+    themeKey: city.id,
+    name: d.name,
+    meta: d.children ? `${d.children.length} район(а/ов) · ${cnt(d)} лотов` : (d.lots.length ? `${d.lots.length} доступных лотов` : 'Скоро появится'),
+    soon: cnt(d) === 0,
+    cls: 'district-card',
+    dataId: d.id
+  })).join('');
+
+  return `
+    <div class="section-title">${grp ? grp.name : city.name}</div>
+    <div class="section-caption">${grp ? 'Выберите район или жилой комплекс' : 'Выберите подборку квартир'}</div>
+    <div class="grid-cards">${cards}</div>
+  `;
+}
+
+/* ---------- Экран квартир ---------- */
+function renderLots(city, district){
+  if (!city || !district){
+    return emptyStateHTML('Раздел не найден', 'Вернитесь назад и выберите район заново.');
+  }
+  const heroStyle = cardMediaStyle(city.id);
+  if (!district.lots.length){
+    return `
+      <div class="glass-card" style="margin:16px; overflow:hidden;"><div class="lot-hero-media" style="${heroStyle}"></div></div>
+      ${emptyStateHTML('Пока нет доступных квартир', `В районе «${district.name}» сейчас нет активных лотов. Мы скоро добавим новые варианты.`)}
+    `;
+  }
+  const cards = district.lots.map(lot => `
+    <div class="glass-card lot-card">
+      <div class="lot-top"><span class="lot-num">${escapeHTML(lot.lot)}</span></div>
+      <div class="lot-project">${escapeHTML(lot.project)}</div>
+      <a class="lot-btn" href="${escapeAttr(lot.url)}" data-url="${escapeAttr(lot.url)}" target="_blank" rel="noopener">
+        Открыть объявление ${ICON_LINK}
+      </a>
+    </div>
+  `).join('');
+
+  return `
+    <div class="glass-card" style="margin:16px 16px 8px; overflow:hidden;"><div class="lot-hero-media" style="${heroStyle}"></div></div>
+    <div class="section-caption" style="padding:0 18px 8px;">${district.lots.length} вариантов аренды · нажмите, чтобы открыть объявление в браузере</div>
+    ${cards}
+    <div class="footer-note">Лунный Свет · Подбор объектов недвижимости</div>
+  `;
+}
+
+/* ---------- Вспомогательные шаблоны ---------- */
+function placeCardHTML({seedKey, themeKey, name, meta, soon, cls, dataId}){
+  return `
+    <div class="place-card ${cls}" data-id="${escapeAttr(dataId)}">
+      <div class="card-media" style="${cardMediaStyle(themeKey)}"></div>
+      ${soon ? `<div class="soon-tag">СКОРО</div>` : ''}
+      <div class="overlay">
+        <div>
+          <div class="name">${escapeHTML(name)}</div>
+          <div class="meta">${escapeHTML(meta)}</div>
+        </div>
+        <div class="arrow">${ICON_ARROW_RIGHT}</div>
+      </div>
+    </div>
+  `;
+}
+function emptyStateHTML(title, text){
+  return `
+    <div class="glass-card empty-state">
+      <div class="glyph">🌙</div>
+      <h4>${escapeHTML(title)}</h4>
+      <p>${escapeHTML(text)}</p>
+    </div>
+  `;
+}
+function bindPlaceCards(selector, onClick){
+  document.querySelectorAll(selector).forEach(el=>{
+    el.addEventListener('click', ()=>{ haptic('light'); onClick(el.getAttribute('data-id')); });
+  });
+}
+function bindLotButtons(){
+  document.querySelectorAll('.lot-btn').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      haptic('light');
+      if (INSIDE_MAX && typeof MAX.openLink === 'function'){
+        // Внутри Telegram — открываем через мост во внешнем браузере.
+        e.preventDefault();
+        try{ MAX.openLink(el.getAttribute('data-url')); }
+        catch(err){ window.open(el.getAttribute('data-url'), '_blank', 'noopener'); }
+      }
+      // Вне Telegram preventDefault не вызываем — сработает обычный переход
+      // по ссылке target="_blank" (сам браузер откроет новую вкладку).
+    });
+  });
+}
+function escapeHTML(str){
+  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+function escapeAttr(str){ return escapeHTML(str); }
+
+render();
+</script>
+</body>
+</html>
